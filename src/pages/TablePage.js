@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Table, Button, Form } from 'react-bootstrap';
 import handleExportToExcel from './excel';
 import Select from 'react-select';
 import handleDelete from './delete_fac';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {  faTrash, faSearch } from '@fortawesome/free-solid-svg-icons';
+import {  faTrash, faFilePdf, faPrint, faFileExcel, faPlus } from '@fortawesome/free-solid-svg-icons';
 import '../style/style.css';
 //import EditModal, { handleEdit } from './edit_fac'; 
-import OutlookForm from './outlookForm';
-import generatePDF from './formPDF'; 
-
+import jsPDF from 'jspdf'; 
+import { useReactToPrint } from 'react-to-print'; 
+import axios from 'axios';
 
 function TablePage() {
   const [showModal, setShowModal] = useState(false);
-  const [showSearchBar, setShowSearchBar] = useState(false);
   const [factures, setFactures] = useState([]);
   const [formData, setFormData] = useState({
     N: '',
@@ -34,6 +33,7 @@ function TablePage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  
 
   function generateInvoiceNumber(num) {
     const currentDate = new Date();
@@ -66,7 +66,7 @@ function TablePage() {
         (facture.arrivee && facture.arrivee.includes(searchTerm))
       );
       setSearchResults(results);
-    }, [searchTerm, factures]);
+    }, [searchTerm, factures]); 
     
   const handleExportToExcelClick = () => { handleExportToExcel(searchResults); };
   
@@ -104,9 +104,29 @@ function TablePage() {
     handleEdit(updatedFacture); setShowEditModal(false); };*/
 
   const handleDeleteClick = (factureId) => { handleDelete(factureId);};
+ 
+  const [showModalpdf, setpdfShowModal] = useState(false);
+  const [startNum, setStartNum] = useState('');
+  const [endNum, setEndNum] = useState('');
+  const generatePDF = (factures) => {
+    const doc = new jsPDF();
+    doc.text('Factures Exportées', 10, 10);
+
+    factures.forEach((facture, index) => {
+      const yPosition = 20 + index * 10;
+      doc.text(
+        `${generateInvoiceNumber(facture.N)} - ${
+          facture.Prestataire_fournisseur
+        } - Montant: ${facture.montant}`,
+        10,
+        yPosition
+      );
+    });
+
+    doc.save('factures.pdf');
+  };
 
   const handleSendPDF = (startNumber, endNumber) => {
-    // Filtrer les factures dont le numéro est compris entre startNumber et endNumber
     const selectedFactures = factures.filter((facture) => {
       const factureNumber = parseInt(facture.N);
       const start = parseInt(startNumber);
@@ -114,66 +134,60 @@ function TablePage() {
       return factureNumber >= start && factureNumber <= end;
     });
 
-    // Générer le PDF à partir des factures sélectionnées
     generatePDF(selectedFactures);
 
-    // Envoyer le PDF par Outlook
-    sendPDFByEmail(selectedFactures);
+    // Call sendPDFByEmail here if you've implemented it
+
+    setpdfShowModal(false);
   };
 
-  // Fonction pour envoyer le PDF par Outlook
-  const sendPDFByEmail = (selectedFactures) => {
-    // Ajoutez ici la logique pour envoyer le PDF par Outlook
-    // Vous pouvez utiliser une bibliothèque comme 'nodemailer' pour envoyer l'email
-    // Exemple : https://nodemailer.com/about/
+  const componentRef = useRef();
+  const [selectedService, setSelectedService] = useState('Finance');
+  const [showimpModal, setShowimpModal] = useState(false);
+  const handlePrintimp = useReactToPrint({
+    content: () => componentRef.current, // Specify the component to be printed
+  });
+
+  const handleServiceChange = (selectedOption) => {
+    setSelectedService(selectedOption.value);
   };
 
+  const [startNume, setStartNume] = useState('');
+  const [endNume, setEndNume] = useState('');
 
-  const options = [
-    { value: 'Ensp', label: 'Ensp' },
-    { value: 'Enageo', label: 'Enageo' },
-    { value: 'Houna el firdaous', label: 'Houna el firdaous' },
-    { value: 'Le Majestic', label: 'Le Majestic' },
-    { value: 'El Mountazah', label: 'El Mountazah' },
-    { value: 'Four Points', label: 'Four Points' },
-    { value: 'Soltane', label: 'Soltane' },
-    { value: 'el Kenz', label: 'el Kenz' },
-    { value: 'Oran center', label: 'Oran center' },
-    { value: 'Mraguen', label: 'Mraguen' },
-    { value: 'Le Zephyr', label: 'Le Zephyr' },
-    { value: 'Mina', label: 'Mina' },
-    { value: 'Ben Osmane', label: 'Ben Osmane' },
-    { value: 'Beau rivage zelfana', label: 'Beau rivage zelfana' }
-  ];
+  
 
+  const [prestataires, setPrestataires] = useState([]);
+
+  useEffect(() => {
+  fetchPrestataires();
+  }, []);
+  
+  const fetchPrestataires = async () => {
+  try {
+  const response = await axios.get('http://localhost:5000/api/prestataires');
+  setPrestataires(response.data.map(prestataire => ({
+  value: prestataire.Nom_pres,
+  label: prestataire.Nom_pres,
+  })
+  )) ;
+  } catch (error) {
+  console.error('Erreur lors de la récupération des prestataires:', error);
+  }
+  };
+  
   const MyComponent = () => (
-    <Select options={options} 
-    value={options.find(option => option.value === formData.Prestataire_fournisseur)}
+  <Select options={prestataires}
+  value={prestataires.find(option => option.value === formData.Prestataire_fournisseur)}
   onChange={(selectedOption) => setFormData({ ...formData, Prestataire_fournisseur: selectedOption.value })}
-/>
+  />
   );
 
   return (
     <div className="App">
       <br/><br/>
       <div className="mx-auto" style={{ maxWidth: "95%" }}>
-      <Button onClick={handleShowModal}>+ Ajouter</Button> <Button onClick={handleExportToExcelClick}>Exporter vers Excel</Button>
-      <FontAwesomeIcon
-        icon={faSearch}
-        className="ml-2"
-        style={{ cursor: 'pointer' }}
-        onClick={() => setShowSearchBar(!showSearchBar)}
-      />
-      {/* Afficher la barre de recherche si showSearchBar est true */}
-      {showSearchBar && (
-        <Form.Control
-          placeholder="Rechercher..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mt-2"
-        />
-      )}
-      <OutlookForm onSendPDF={handleSendPDF} />
+      <Button onClick={handleShowModal}><FontAwesomeIcon icon={faPlus} /> Ajouter</Button> <Button onClick={handleExportToExcelClick}><FontAwesomeIcon icon={faFileExcel} /> Exporter vers Excel</Button> <Button onClick={() => setpdfShowModal(true)}><FontAwesomeIcon icon={faFilePdf} /> Exporter vers PDF</Button>  <Button onClick={() => setShowimpModal(true)}><FontAwesomeIcon icon={faPrint} /> Imprimer</Button>
       <Form.Control placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="custom-search-input"/>
       <Modal show={showModal} onHide={handleCloseModal}>
       <Modal.Header closeButton>
@@ -259,7 +273,133 @@ function TablePage() {
           <Button variant="secondary" onClick={handleCloseModal}>Fermer</Button>
           <Button variant="primary" onClick={handleAdd}>Ajouter</Button>
         </Modal.Footer>
-      </Modal> 
+      </Modal>
+      <Modal show={showModalpdf} onHide={() => setpdfShowModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Générer un PDF</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="startNum">
+            <Form.Label>Numéro de début</Form.Label>
+            <Form.Control
+              type="number"
+              value={startNum}
+              onChange={(e) => setStartNum(e.target.value)}
+            />
+          </Form.Group>
+          <Form.Group controlId="endNum">
+            <Form.Label>Numéro de fin</Form.Label>
+            <Form.Control
+              type="number"
+              value={endNum}
+              onChange={(e) => setEndNum(e.target.value)}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setpdfShowModal(false)}>
+            Annuler
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => handleSendPDF(startNum, endNum)}
+          > Générer le PDF </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={showimpModal} onHide={() => setShowimpModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Impression</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+        <Form.Group controlId="startNum">
+          <Form.Label>Numéro de début</Form.Label>
+          <Form.Control
+            type="number"
+            value={startNume}
+            onChange={(e) => setStartNume(e.target.value)}
+          />
+        </Form.Group>
+        <Form.Group controlId="endNum">
+          <Form.Label>Numéro de fin</Form.Label>
+          <Form.Control
+            type="number"
+            value={endNume}
+            onChange={(e) => setEndNume(e.target.value)}
+          />
+  </Form.Group>
+      <Form.Group controlId="selectedService">
+        <Form.Label>Sélectionnez le service</Form.Label>
+        <Select
+          options={[
+            { value: 'Finance', label: 'Finance' },
+            { value: 'Liaison', label: 'Liaison' },
+          ]}
+          value={{ value: selectedService, label: selectedService }}
+          onChange={handleServiceChange}
+        />
+      </Form.Group>
+      <div className="print-content" ref={componentRef}>
+      <style>
+        {`
+          @media print {
+            .print-content {
+              display: block;
+            }
+          }
+        `}
+      </style>
+  <div className="print-header" >
+    <div className="column">
+      <img className="logo" src="logosonatrach.png" alt="Sonatrach Logo" /> 
+      <h4 className="envoi">Bordereau d'envoi</h4><br/>
+      <div className="sender">    Expéditeur </div><br/>
+      <div className="sender2">Service Ordonnancement </div> <div className={`recipient ${selectedService === 'Finance' ? 'finance' : 'Liaison'}`}>Destinataire:<strong>
+              {selectedService === 'Finance'
+                ? ' Monsieur le chef département comptabilité générale'
+                : ' Monsieur le chef département liaisons'}
+      </strong></div><br/>
+      <div className="sender3">      DGP</div>  <div className="user">Fait par : <strong>Mme. </strong></div>
+    </div>
+  </div>
+  <div className="div-table">
+  <Table >
+    <thead>
+    <tr>
+            <th>N°</th>
+            <th>Prestataire/Fournisseur</th>
+            <th>Facture N°</th>
+            <th>Date Facture</th>
+            <th>Montant</th>
+            <th>Bon de Commande ou Contrat N°</th>
+          </tr>
+    </thead>
+    <tbody>
+        {searchResults
+      .filter(facture => facture.N >= startNume && facture.N <= endNume)
+      .map((facture) => (
+        <tr key={facture._id}>
+          <td>{generateInvoiceNumber(facture.N)}</td>
+          <td>{facture.Prestataire_fournisseur}</td>
+          <td>{facture.factureN}</td>
+          <td>{facture.Datefacture}</td>
+          <td>{facture.montant}</td>
+          <td>{facture.bonCommande}</td>
+        </tr>
+      ))}
+  </tbody>
+  </Table>
+  </div>
+      </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowimpModal(false)}>
+            Annuler
+          </Button>
+          <Button variant="primary" onClick={handlePrintimp}>
+            Imprimer
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <br/><br/>
       <Table striped bordered hover>
         <thead>
