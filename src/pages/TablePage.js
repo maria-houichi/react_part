@@ -3,10 +3,12 @@ import { Modal, Table, Button, Form } from 'react-bootstrap';
 import handleExportToExcel from './excel';
 import Select from 'react-select';
 import handleDelete from './delete_fac';
+import imprimer from './imprimer';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {  faTrash, faSearch } from '@fortawesome/free-solid-svg-icons';
 import '../style/style.css';
+import { faPencilAlt } from '@fortawesome/free-solid-svg-icons';
 //import EditModal, { handleEdit } from './edit_fac'; 
 import OutlookForm from './outlookForm';
 import generatePDF from './formPDF'; 
@@ -14,8 +16,28 @@ import generatePDF from './formPDF';
 
 function TablePage() {
   const [showModal, setShowModal] = useState(false);
+  const [showModalEdit, setShowModalEdit] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [factures, setFactures] = useState([]);
+  const [showImage, setShowImage] = useState(false);
+  const [imageSrc, setImageSrc] = useState('');
+  const [facture, setFacture] = useState({
+    _id:'',
+    N: '',
+    Prestataire_fournisseur: '',
+    factureN: '',
+    Datefacture: '',
+    montant: '',
+    bonCommande: '',
+    transmisDPT: '',
+    transmisDFC: '',
+    observations: '',
+    imputation: '',
+    fichier: '',
+    dateVirement: '',
+    arrivee: '',
+
+  });
   const [formData, setFormData] = useState({
     N: '',
     Prestataire_fournisseur: '',
@@ -34,7 +56,37 @@ function TablePage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const afficherImage = (event) => {
+    event.preventDefault();
+    const imageSrc = event.target.src;
+    setImageSrc(imageSrc);
+    setShowImage(true);
+  };
 
+  const fermerImage = () => {
+    setShowImage(false);
+  };
+
+ // Edir
+  const handleShowModalEdit = (facture) => {
+    setFacture({
+      _id:facture._id,
+      N: facture.N,
+      Prestataire_fournisseur: facture.Prestataire_fournisseur,
+      factureN: facture.factureN,
+      Datefacture: facture.Datefacture,
+      montant: facture.montant,
+      bonCommande: facture.bonCommande,
+      transmisDPT: facture.transmisDPT,
+      transmisDFC: facture.transmisDFC,
+      observations: facture.observations,
+      imputation: facture.imputation,
+      fichier: facture.fichier,
+      dateVirement: facture.dateVirement,
+      arrivee: facture.arrivee,
+    });
+    setShowModalEdit(true);
+  };
   function generateInvoiceNumber(num) {
     const currentDate = new Date();
     const year = currentDate.getFullYear();
@@ -71,10 +123,59 @@ function TablePage() {
   const handleExportToExcelClick = () => { handleExportToExcel(searchResults); };
   
   const handleShowModal = () => { setShowModal(true); };
-  
+
   const handleCloseModal = () => { setShowModal(false);};
+
+  const handleCloseModalEdit = () => { setShowModalEdit(false);};
   
+  const handleFileChange = async (e) => {
+    console.log("apl change file ")
+    const selectedFile = e.target.files[0];
+    setFacture({ ...facture, fichier: selectedFile });
+  
+    // Upload the file to the server and get the image URL
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+  
+    const response = await fetch('http://localhost:5000/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  
+    // Handle the response
+    if (response.ok) {
+      const data = await response.json();
+      // Mettez à jour l'état de facture.fichier avec l'URL reçue
+      setFacture({ ...facture, fichier: data.imageUrl });
+    } else {
+      // Gérer les erreurs en cas de problème avec le téléchargement
+      console.error('Erreur lors du téléchargement du fichier');
+    }
+  };
+  
+ /* const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setFacture({ ...facture, fichier: e.target.value });
+  };*/
+  const handleEdit = () => {
+   
+    fetch(`http://localhost:5000/api/facture/${facture._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(facture),
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Mettre à jour l'affichage de la facture mise à jour dans la liste des factures
+      console.log('Facture mise à jour:', data);
+    })
+    .catch(error => console.error('Erreur lors de la mise à jour de la facture:', error));
+  };
+
   const handleAdd = () => {
+    
     fetch('http://localhost:5000/api/facture', {
       method: 'POST',
       headers: {
@@ -260,7 +361,144 @@ function TablePage() {
           <Button variant="primary" onClick={handleAdd}>Ajouter</Button>
         </Modal.Footer>
       </Modal> 
+      <Modal show={showModalEdit} onHide={handleCloseModalEdit}>
+      <Modal.Header closeButton>
+          <Modal.Title>modifierla Facture</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+          <Form.Group controlId="exampleForm.ControlInput1">
+        <Form.Label>N°</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="N°"
+          value={facture.N}
+          onChange={(e) => setFacture({ ...facture, N: e.target.value })}
+          autoFocus
+          required
+        />
+      </Form.Group>
+
+              <Form.Group controlId="exampleForm.ControlSelect1">
+  <Form.Label>Prestataire/Fournisseur</Form.Label>
+
+  <Form.Control
+    value={facture.Prestataire_fournisseur}
+    readOnly // Pour rendre le champ en lecture seule
+  />
+</Form.Group>
+
+              
+<Form.Group controlId="exampleForm.ControlInput2">
+        <Form.Label>Facture N°</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="Facture N°"
+          value={facture.factureN}
+          onChange={(e) => setFacture({ ...facture, factureN: e.target.value })}
+        />
+      </Form.Group>
+
+      {/* Champ : Date Facture */}
+      <Form.Group controlId="exampleForm.ControlInput3">
+        <Form.Label>Date Facture</Form.Label>
+        <Form.Control
+          type="date"
+          value={facture.Datefacture}
+          onChange={(e) => setFacture({ ...facture, Datefacture: e.target.value })}
+        />
+      </Form.Group>
+
+      {/* Champ : Montant */}
+      <Form.Group controlId="exampleForm.ControlInput4">
+        <Form.Label>Montant</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="Montant"
+          value={facture.montant}
+          onChange={(e) => setFacture({ ...facture, montant: e.target.value })}
+        />
+      </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput4">
+                <Form.Label>Bon de Commande ou Contrat N°</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Bon de Commande ou Contrat N°"
+                  value={facture.bonCommande}
+                  onChange={(e) => setFacture({ ...facture, bonCommande: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput3">
+        <Form.Label>Date de transmission à DPT</Form.Label>
+        <Form.Control
+          type="date"
+          value={facture.transmisDPT}
+          onChange={(e) => setFacture({ ...facture, transmisDPT: e.target.value })}
+        />
+      </Form.Group>
+      <Form.Group controlId="exampleForm.ControlInput3">
+        <Form.Label>Date de transmission à DFC</Form.Label>
+        <Form.Control
+          type="date"
+          value={facture.transmisDFC}
+          onChange={(e) => setFacture({ ...facture, transmisDFC: e.target.value })}
+        />
+      </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput4">
+                <Form.Label>Imputation</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Imputation"
+                  value={facture.imputation}
+                  onChange={(e) => setFacture({ ...facture, imputation: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput4">
+                <Form.Label>Observations</Form.Label>
+                <Form.Control
+                  type="textarea"
+                  placeholder="Observations"
+                  value={facture.observations}
+                  onChange={(e) => setFacture({ ...facture, observations: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput5">
+        <Form.Label>Fichier</Form.Label>
+        <Form.Control
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+        
+        />
+      </Form.Group>
+
+      <Form.Group controlId="exampleForm.ControlInput4">
+                <Form.Label>Date et N de virement </Form.Label>
+                <Form.Control
+                  type="textarea"
+                  placeholder="Observations"
+                  value={facture.observations}
+                  onChange={(e) => setFacture({ ...facture, observations: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group controlId="exampleForm.ControlInput3">
+        <Form.Label> arrivée le  </Form.Label>
+        <Form.Control
+          type="date"
+          value={facture.Datefacture}
+          onChange={(e) => setFacture({ ...facture, Datefacture: e.target.value })}
+        />
+      </Form.Group>
+
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModalEdit}>Fermer</Button>
+          <Button variant="primary" onClick={handleEdit}>confirmer</Button>
+        </Modal.Footer>
+      </Modal> 
       <br/><br/>
+     
       <Table striped bordered hover>
         <thead>
           <tr>
@@ -293,7 +531,11 @@ function TablePage() {
               <td>{facture.transmisDFC}</td>
               <td>{facture.observations}</td>
               <td>{facture.imputation}</td>
-              <td>{facture.fichier}</td> 
+              <td>
+    <a href={`http://localhost:5000${facture.fichier}`}>voir l'image</a>
+</td>
+
+
               <td>{facture.dateVirement}</td>
               <td>{facture.arrivee}</td>
               <td> 
@@ -301,11 +543,21 @@ function TablePage() {
                 <button onClick={() => handleDeleteClick(facture._id)} className="btn btn-danger">
                   <FontAwesomeIcon icon={faTrash} />
                 </button>
+                <Button onClick={() => handleShowModalEdit(facture)} className="btn btn-warning"> <FontAwesomeIcon icon={faPencilAlt} /></Button>
               </td>
+              <div>
+              <button onClick={() => imprimer(facture)}  variant="primary">Télécharger le PDF</button>
+
+      </div>
             </tr>
           ))}
         </tbody>
       </Table>
+      {showImage && (
+        <div className="image-overlay" onClick={fermerImage}>
+          <img src={imageSrc} alt="Facture Affichée" />
+        </div>
+      )}
       <br/><br/>
       </div>
     </div>
