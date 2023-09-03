@@ -242,7 +242,35 @@ function TablePage() {
 
     setpdfShowModal(false);
   };
+  const [checked, setChecked] = useState(false); 
+  const [factureSelectionne, setFactureSelectionne] = useState({
+    _id:'',
+    N: '',
+    Prestataire_fournisseur: '',
+    factureN: '',
+    Datefacture: '',
+    montant: '',
+    bonCommande: '',
+    transmisDPT: '',
+    transmisDFC: '',
+    observations: '',
+    imputation: '',
+    fichier: '',
+    dateVirement: '',
+    arrivee: '',
 
+  });
+  const [checkboxState, setCheckboxState] = useState([]);
+ // const [factureSelectionne, setFactureSelectionne] = useState(false);
+  const handleChange = (facture, index) => {
+    const updatedState = [...checkboxState];
+    updatedState[index] = !updatedState[index];
+    setCheckboxState(updatedState);
+    setChecked(!checked);
+    setFactureSelectionne(facture)
+    console.log("facture selectionne ",facture)
+  };
+  
   const componentRef = useRef();
   const [selectedService, setSelectedService] = useState('Finance');
   const [showimpModal, setShowimpModal] = useState(false);
@@ -289,7 +317,9 @@ function TablePage() {
     <div className="App">
       <br/><br/>
       <div className="mx-auto" style={{ maxWidth: "95%" }}>
-      <Button onClick={handleShowModal}><FontAwesomeIcon icon={faPlus} /> Ajouter</Button> <Button onClick={handleExportToExcelClick}><FontAwesomeIcon icon={faFileExcel} /> Exporter vers Excel</Button> <Button onClick={() => setpdfShowModal(true)}><FontAwesomeIcon icon={faFilePdf} /> Exporter vers PDF</Button>  <Button onClick={() => setShowimpModal(true)}><FontAwesomeIcon icon={faPrint} /> Imprimer</Button>
+      <Button onClick={handleShowModal}><FontAwesomeIcon icon={faPlus} /> Ajouter</Button> <Button onClick={handleExportToExcelClick}><FontAwesomeIcon icon={faFileExcel} /> Exporter vers Excel</Button> 
+      <Button onClick={() => imprimer(factureSelectionne)}  variant="primary">Fiche Bon A Payer</Button>
+      <Button onClick={() => setpdfShowModal(true)}><FontAwesomeIcon icon={faFilePdf} /> Exporter vers PDF</Button>  <Button onClick={() => setShowimpModal(true)}><FontAwesomeIcon icon={faPrint} /> Imprimer</Button>
       <Form.Control placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="custom-search-input"/>
       <Modal show={showModal} onHide={handleCloseModal}>
       <Modal.Header closeButton>
@@ -642,59 +672,61 @@ function TablePage() {
       <br/><br/>
      
       <Table striped bordered hover>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>Prestataire/Fournisseur</th>
-            <th>Facture N°</th>
-            <th>Date Facture</th>
-            <th>Montant</th>
-            <th>Bon de Commande ou Contrat N°</th>
-            <th>Transmis à DPT le</th>
-            <th>Transmis à DFC le</th>
-            <th>Observations</th>
-            <th>Imputation</th>
-            <th>Fichier</th>
-            <th>Date et N° de virement</th>
-            <th>Arrivée le</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {searchResults.map(facture => (
-            <tr key={facture._id}>
-               <td>{generateInvoiceNumber(facture.N)}</td>
-              <td>{facture.Prestataire_fournisseur}</td>
-              <td>{facture.factureN}</td>
-              <td>{facture.Datefacture}</td>
-              <td>{facture.montant}</td>
-              <td>{facture.bonCommande}</td>
-              <td>{facture.transmisDPT}</td>
-              <td>{facture.transmisDFC}</td>
-              <td>{facture.observations}</td>
-              <td>{facture.imputation}</td>
-              <td>
-    <a href={`http://localhost:5000${facture.fichier}`}>voir l'image</a>
-</td>
+  <thead>
+    <tr>
+      <th>N°</th>
+      <th>Prestataire/Fournisseur</th>
+      <th>Facture N°</th>
+      <th>Date Facture</th>
+      <th>Montant</th>
+      <th>Bon de Commande ou Contrat N°</th>
+      <th>Transmis à DPT le</th>
+      <th>Transmis à DFC le</th>
+      <th>Observations</th>
+      <th>Imputation</th>
+      <th>Fichier</th>
+      <th>Date et N° de virement</th>
+      <th>Arrivée le</th>
+      <th>Actions</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {searchResults.map((facture, index) => (
+      <tr key={facture._id}>
+        <td>{generateInvoiceNumber(facture.N)}</td>
+        <td>{facture.Prestataire_fournisseur}</td>
+        <td>{facture.factureN}</td>
+        <td>{facture.Datefacture}</td>
+        <td>{facture.montant}</td>
+        <td>{facture.bonCommande}</td>
+        <td>{facture.transmisDPT}</td>
+        <td>{facture.transmisDFC}</td>
+        <td>{facture.observations}</td>
+        <td>{facture.imputation}</td>
+        <td><a href={`http://localhost:5000${facture.fichier}`}>voir l'image</a></td>
+        <td>{facture.dateVirement}</td>
+        <td>{facture.arrivee}</td>
+        <td>
+          <button onClick={() => handleDeleteClick(facture._id)} className="btn btn-danger">
+            <FontAwesomeIcon icon={faTrash} />
+          </button>
+          <Button onClick={() => handleShowModalEdit(facture)} className="btn btn-warning">
+            <FontAwesomeIcon icon={faPencilAlt} />
+          </Button>
+        </td>
+        <td>
+          <input
+            type="radio"
+            checked={checkboxState[index] || false}
+            onChange={() => handleChange(facture, index)}
+          />
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</Table>
 
-
-              <td>{facture.dateVirement}</td>
-              <td>{facture.arrivee}</td>
-              <td> 
-                
-                <button onClick={() => handleDeleteClick(facture._id)} className="btn btn-danger">
-                  <FontAwesomeIcon icon={faTrash} />
-                </button>
-                <Button onClick={() => handleShowModalEdit(facture)} className="btn btn-warning"> <FontAwesomeIcon icon={faPencilAlt} /></Button>
-              </td>
-              <div>
-              <button onClick={() => imprimer(facture)}  variant="primary">Télécharger le PDF</button>
-
-      </div>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
       {showImage && (
         <div className="image-overlay" onClick={fermerImage}>
           <img src={imageSrc} alt="Facture Affichée" />
