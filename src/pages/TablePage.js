@@ -4,6 +4,7 @@ import handleExportToExcel from './excel';
 import Select from 'react-select';
 import handleDelete from './delete_fac';
 import imprimer from './imprimer';
+import jwtDecode from 'jwt-decode';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {  faTrash, faFilePdf, faPrint, faFileExcel, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -15,6 +16,7 @@ import { useReactToPrint } from 'react-to-print';
 import axios from 'axios';
 
 function TablePage() {
+  const [userId, setUserId] = useState( "");
   const [showModal, setShowModal] = useState(false);
   const [showModalEdit, setShowModalEdit] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
@@ -52,6 +54,7 @@ function TablePage() {
     fichier: '',
     dateVirement: '',
     arrivee: '',
+    userId:'',
 
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -123,7 +126,8 @@ function TablePage() {
     
   const handleExportToExcelClick = () => { handleExportToExcel(searchResults); };
   
-  const handleShowModal = () => { setShowModal(true); };
+  const handleShowModal = () => { setShowModal(true);
+ };
 
   const handleCloseModal = () => { setShowModal(false);};
 
@@ -176,7 +180,7 @@ function TablePage() {
   };
 
   const handleAdd = () => {
-    
+    formData.userId=userId
     fetch('http://localhost:5000/api/facture', {
       method: 'POST',
       headers: {
@@ -205,6 +209,23 @@ function TablePage() {
     // Faites ici la mise à jour de la facture en utilisant la fonction handleEdit que vous avez importée de edit_fac.js
     handleEdit(updatedFacture); setShowEditModal(false); };*/
 
+    useEffect(() => {
+      // Fonction à exécuter au chargement de la page
+      (function () {
+      })();
+      // Récupérer le jeton JWT depuis le stockage local
+      const token = localStorage.getItem('token');
+      console.log("tokennnnnnnn",token)
+  
+      if (token) {
+        // Déchiffrer le jeton JWT pour obtenir les informations de l'utilisateur
+        const decodedUser = jwtDecode(token);
+        console.log("user",decodedUser)
+  
+        // Mettre à jour l'état avec les informations de l'utilisateur décodé
+        setUserId(decodedUser.userId);
+      }
+    }, []);
   const handleDeleteClick = (factureId) => { handleDelete(factureId);};
  
   const [showModalpdf, setpdfShowModal] = useState(false);
@@ -399,6 +420,7 @@ function TablePage() {
                   onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
                 />
               </Form.Group>
+              
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -692,7 +714,9 @@ function TablePage() {
     </tr>
   </thead>
   <tbody>
-    {searchResults.map((facture, index) => (
+    {searchResults
+    .filter(facture => facture.userId == userId)
+    .map((facture, index) => (
       <tr key={facture._id}>
         <td>{generateInvoiceNumber(facture.N)}</td>
         <td>{facture.Prestataire_fournisseur}</td>
